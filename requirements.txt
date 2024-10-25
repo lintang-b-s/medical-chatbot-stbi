@@ -1,0 +1,21 @@
+
+dspy
+google-generativeai
+dspy-ai
+python-dotenv
+
+langchain-google-genai
+# langchain-huggingface==0.0.2
+pypdf
+langchain_community
+langchain-chroma
+langchain
+
+langchain-text-splitters
+InstructorEmbedding
+sentence-transformers==2.2.2
+huggingface_hub==0.24.7
+xmltodict
+metapub
+
+gdown

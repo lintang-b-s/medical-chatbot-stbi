@@ -1,0 +1,9 @@
+venv
+.env
+
+chroma_langchain_db2/
+welllahh_chroma.zip
+.ipynb_checkpoints/
+client_secret.json
+liveqa.csv
+gemini_fine_tune_dataset.csv
