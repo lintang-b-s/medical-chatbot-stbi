@@ -16,9 +16,9 @@ import google.generativeai as genai
 
 import gdown
 import zipfile
+#https://drive.google.com/file/d/1S0nxpfC4ifrktLpoetCrNmTyTVSydsqM/view?usp=sharing
 
-
-file_id = "1VhGX4qmC68eCkOzlHtt82GfsQxCFEF0Y"
+file_id = "1S0nxpfC4ifrktLpoetCrNmTyTVSydsqM"
 output_path = "welllahh_chroma.zip"
 
 if not os.path.isfile(output_path):
