@@ -1,0 +1,53 @@
+{%load static%}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>medical Chatbot</title>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.4.0/fonts/remixicon.css" rel="stylesheet" />
+    <link rel="stylesheet" href="{% static 'css/chatbot.css' %}">
+
+</head>
+
+<body>
+    <div class="container">
+        <section class="side-bar">
+            <button class="new-chat">
+                New Chat
+            </button>
+            <div class="history"></div>
+            <nav>
+                <p>medical Chatbot</p>
+            </nav>
+
+        </section>
+
+
+        <section class="main">
+            <div class="what-container">
+                <svg id="circle-icon" width="40" height="40" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="8" cy="8" r="8" fill="#1B2559"/>
+                </svg>
+                <h1 class="what-can-i-help"></h1>
+            </div>
+            </h1>
+            <div class="chat-container"></div>
+            <form class="form-chat">
+                <div class="bottom-section">
+                    <div class="input-container">
+                        <textarea name="prompt" placeholder="tanya ke chatbot..." type="text"> </textarea>
+                        <div id="submit">➩</div>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+    </div>
+
+    <script src="{% static 'js/chatbot.js' %}"></script>
+</body>
+
+</html>
