@@ -29,7 +29,6 @@ import faiss
 import numpy as np
 from datasets import load_dataset
 
-
 ds = load_dataset("HPAI-BSC/medqa-cot")
 
 medqa_cot_embeds = np.load("medqa_cot.npy")
@@ -39,6 +38,7 @@ index.add(medqa_cot_embeds)
 
 query_model = AutoModel.from_pretrained("ncbi/MedCPT-Query-Encoder")
 query_tokenizer = AutoTokenizer.from_pretrained("ncbi/MedCPT-Query-Encoder")
+
 
 load_dotenv()
 
@@ -276,6 +276,7 @@ retrieval_chain = generate_query | {
 def format_docs(docs):
     query = docs["query"]
     chroma_docs = [doc.metadata["content"] + doc.page_content for doc in docs["chroma"]]
+    relevant_cot = docs["medqa_cot"]
 
     docs = list(set(chroma_docs + docs["websearch"]))
     # rerank passage2 dari document chromadb & hasil scraping webpage hasil duckduckgosearch
@@ -283,7 +284,6 @@ def format_docs(docs):
     context = "\n\n".join(doc for doc in relevant_docs)
 
     # tambahin few-shot chain-of-thought prompting
-    relevant_cot = docs["medqa_cot"]
     for cot in relevant_cot:
         context += "\n" + cot
     return context
@@ -316,21 +316,16 @@ def answer(question):
     return answer
 
 
-def answer_pipeline(question, chat_history):
-    user_context = ""
-    if chat_history != "":
-        user_context = user_summarizer(
-            text=chat_history
-            + "\n"
-            + "summarize the user's health condition based on the user's chat history above! only explain the user's health condition and nothing else!"
-        )
 
-    if user_context != "" and "insufficient data" not in user_context.lower():
-        question = ".my health condition: " + user_context + "\n" + question
-   
-    question = translate_text(question, "English")
+def answer_pipeline_for_eval(question):
+    """
+    buat evaluasi llm.
+    Pertanyaan dalam bahasa inggris.
+    pakai pertanyaan dari PubmedQA, MedQA -> pakai  (exact match)
+    pakai: https://huggingface.co/datasets/GBaker/MedQA-USMLE-4-options/viewer/default/test?row=23
+    
+    """
     question = question.replace("\n", "  ")
     print("retrieving relevant passages and answering user question....")
     pred = answer(question)
-    translate_answer = translate_text(pred["llm_output"], "Indonesian")
-    return translate_answer, pred["context"]
+    return pred["llm_output"], pred["context"]

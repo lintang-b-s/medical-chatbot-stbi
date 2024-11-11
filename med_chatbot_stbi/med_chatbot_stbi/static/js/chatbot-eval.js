@@ -227,7 +227,7 @@ async function getMessage(e) {
     console.log("chatHistory: ", chatHistory)
     try {
 
-        const response = await fetch("http://localhost:8000/ai/chatbot", options)
+        const response = await fetch("http://localhost:8000/ai/chatbot_eval", options)
 
 
         clearInterval(loadInterval)

@@ -24,7 +24,9 @@ app_name = "med_chatbot_stbi"
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("ai/chatbot", views.get_chatbot_response, name="chatbot"),
+    path("ai/chatbot_eval", views.get_chatbot_response_for_eval, name="chatbot_eval"),
     path("ai/chatbotpage", views.chatbot_page, name="chatbotpage"),
+    path("ai/chatbotpage_eval", views.chatbot_page_for_eval, name="chatbot_eval"),
 ]
 
 

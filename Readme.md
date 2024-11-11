@@ -10,4 +10,5 @@ medical chatbot using fine-tuned gemini-1.5-flash, chain-of-thought Retrieval Au
 - tunggu sampai backup chroma db selesai didownload.
 - unzip welllahh_chroma.zip
 - buka http://localhost:8000/ai/chatbotpage
+- ask chatbot
 ```

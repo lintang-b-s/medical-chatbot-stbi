@@ -23,3 +23,6 @@ duckduckgo-search
 langchain-core
 django
 daphne
+
+faiss-cpu
+InstructorEmbedding
