@@ -1,11 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
 * {
-    color: #1B2559;
+    /* color: #fff; */
+    margin: 0;
+    padding: 0;
 }
 
 body {
-    margin: 0;
-    padding: 0;
+   
     --primary: #FAF1E4;
     --secondary: #FFEED6;
     --tertiary: #435334;
@@ -30,6 +31,7 @@ h1 {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    gap: 5px;
 }
 
 .main {
@@ -60,10 +62,11 @@ textarea {
     color: var(--text-color);
 }
 
-my-textarea::placeholder {
+textarea::placeholder {
     color: var(--text-color);
     opacity: 1;
 }
+
 
 textarea:focus {
     outline: none;
@@ -96,13 +99,23 @@ form {
     color: var(--text-color);
 }
 
-button {
+.new-chat {
     border: solid 0.5px rgba(255, 255, 255, 0.5);
-    background-color: transparent;
-    border-radius: 8px;
+    background-color: #39462C;
+    border-radius: 40px;
     padding: 20px;
     margin: 10px;
     cursor: pointer;
+}
+
+.button-new-chat {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    font-size: 20px;
+    gap: 5px;
+    color: #fff;
 }
 
 nav {
@@ -117,6 +130,25 @@ nav {
     padding: 10px;
     margin: 10px;
     height: 100%;
+    overflow-y: scroll;
+}
+
+.history a {
+    color: #ffffff;
+}
+
+.history::-webkit-scrollbar {
+    width: 8px;
+}
+
+.history::-webkit-scrollbar-thumb {
+    background-color: #424242;
+    border-radius: 4px;
+}
+
+.history::-webkit-scrollbar-track {
+    background-color: #435334;
+    border-radius: 4px;
 }
 
 .history p {
@@ -148,7 +180,6 @@ nav {
 .wrapper {
     width: 90%;
     padding: 20px;
-    max-width: 1600px;
     border-radius: 15px;
     color: var(--text-color);
     margin: 0 auto;
@@ -164,6 +195,7 @@ nav {
 
 .chat {
     width: 100%;
+    /* max-width: 1280px; */
     margin: 0 auto;
     display: flex;
     flex-direction: row;
@@ -218,13 +250,17 @@ nav {
     padding: 4rem 2rem;
     border-radius: 20px;
     background: #ffeed6;
-    color: var(--text-color);
     box-shadow: 0 0 1rem .1rem #0beeb9;
     position: relative;
 }
 
 .modal_title {
+    color: var(--text-color);
     font-size: 3.2rem;
+}
+
+.chat-item {
+    list-style-type: none;
 }
 
 .modal_text {
@@ -233,7 +269,9 @@ nav {
     font-size: 1.5rem;
     text-align: start;
     max-height: 300px;
+    color: var(--text-color);
     overflow-y: auto;
+    white-space: pre-wrap; 
     line-height: 2;
 }
 
@@ -322,4 +360,56 @@ nav {
     padding: 0;
     display: flex;
     justify-content: center;
+}
+
+
+/* history */
+
+.history h3 {
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff;
+    margin: 10px 0 5px;
+    padding: 0 10px;
+}
+
+.chat-list {
+    padding: 5px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.chat-list li {
+    padding: 5px 5px;
+}
+
+.chat-list li div {
+    cursor: pointer;
+}
+
+.chat-list li.active {
+    opacity: 0.9;
+    border: 0.5px solid #fff;
+    background: #648544;
+    border-radius: 8px;
+}
+
+
+nav  {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 5px;
+}
+
+.back-button {
+    
+    background: #39462c;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 12px;
+    cursor: pointer;
+    margin: 10px 0;
+    text-decoration: none;
 }

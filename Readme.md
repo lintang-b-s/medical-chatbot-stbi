@@ -5,6 +5,7 @@ medical chatbot using fine-tuned gemini-1.5-flash, chain-of-thought Retrieval Au
 
 
 ```
+- download "https://drive.google.com/file/d/1FCNJw28pQZZLuWUGSmmAw9_Ux4r5otsD/view?usp=sharing"
 - Activate/Turn on ProtonVPN or any VPN for duckduckgosearch
 - python3 med_chatbot_stbi/manage.py  runserver
 - tunggu sampai backup chroma db selesai didownload.
