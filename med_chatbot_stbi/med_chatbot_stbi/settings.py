@@ -11,9 +11,34 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+import gdown
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+#https://drive.google.com/file/d/1S0nxpfC4ifrktLpoetCrNmTyTVSydsqM/view?usp=sharing
+
+file_id = "1S0nxpfC4ifrktLpoetCrNmTyTVSydsqM"
+output_path = "welllahh_chroma.zip"
+
+if not os.path.isdir("chroma_langchain_db2"):
+    gdown.download(
+        f"https://drive.google.com/uc?id={file_id}", output_path, quiet=False
+    )
+
+    print("Download completed.")
+else:
+    print("File already exists in the project root.")
+
+
+if not os.path.isdir("chroma_langchain_db2"):
+    print("Extract backup chromadb...")
+    with zipfile.ZipFile(output_path, "r") as zip_ref:
+        zip_ref.extractall()
+    print("Extraction completed.")
 
 
 

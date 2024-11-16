@@ -84,7 +84,7 @@ retriever_model = Chroma(
     embedding_function=instructor_embeddings,
 )
 
-retriever = retriever_model.as_retriever(search_kwargs={"k": 8})
+retriever = retriever_model.as_retriever(search_kwargs={"k": 3})
 
 
 template = """Write multiple different very short search queries (each queries by a separated by "," & maximum different 4 very short search queries) that will help answer complex user questions, make sure in your answer you only give multiple different very short search queries (each queries by a separated by "," & maximum different 4 very short search queries) and don't include any other text! . Original question: {question}"""
@@ -278,20 +278,27 @@ websearch_retriever = DuckDuckGoRetriever(k=2)
 medqa_cot_retriever = MedQACoTRetriever(k=3)
 
 
-def rerank_docs_medcpt(query, docs):
-    pairs = [[query, article] for article in docs]
-    with torch.no_grad():
-        encoded = tokenizer(
-            pairs,
-            truncation=True,
-            padding=True,
-            return_tensors="pt",
-            max_length=512,
-        )
 
-        logits = model(**encoded).logits.squeeze(dim=1)
-        values, indices = torch.sort(logits, descending=True)
-        relevant = [docs[i] for i in indices[:17]]
+def rerank_docs_medcpt(queries, docs):
+    queries = queries.split(",")
+    relevant = set()
+    for query in queries:
+        pairs = [[query, article] for article in docs]
+        with torch.no_grad():
+            encoded = tokenizer(
+                pairs,
+                truncation=True,
+                padding=True,
+                return_tensors="pt",
+                max_length=512,
+            )
+
+            logits = model(**encoded).logits.squeeze(dim=1)
+            values, indices = torch.sort(logits, descending=True)
+            curr_relevant = [docs[i] for i in indices[:2]]
+            for doc in curr_relevant:
+                relevant.add(doc)
+    relevant = list(relevant)
     return relevant
 
 
