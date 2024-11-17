@@ -84,7 +84,7 @@ retriever_model = Chroma(
     embedding_function=instructor_embeddings,
 )
 
-retriever = retriever_model.as_retriever(search_kwargs={"k": 3})
+retriever = retriever_model.as_retriever(search_kwargs={"k": 2})
 
 
 template = """Write multiple different very short search queries (each queries by a separated by "," & maximum different 4 very short search queries) that will help answer complex user questions, make sure in your answer you only give multiple different very short search queries (each queries by a separated by "," & maximum different 4 very short search queries) and don't include any other text! . Original question: {question}"""
@@ -346,7 +346,7 @@ def answer(question):
     docs["chroma"] = []
     search_query = docs["query"].split(",")
     for query in search_query:
-        new_knowledge_base_contexts = retriever.invoke(query)
+        new_knowledge_base_contexts = retriever.invoke("Represent the Medicine sentence for retrieving relevant documents:" + query)
         for new_context in new_knowledge_base_contexts:
             docs["chroma"].append(new_context)
     context = format_docs(docs)

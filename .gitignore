@@ -19,8 +19,12 @@ Untitled.ipynb
 
 
 .env
+eval/chroma_langchain_db2/
+eval/.ipynb_checkpoints/
+eval/medqa_cot.npy
 
 
 med_chatbot_stbi/med_chatbot_stbi/__pycache__/
 
 medqa_cot.npy
+

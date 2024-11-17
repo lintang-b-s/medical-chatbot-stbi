@@ -1,4 +1,4 @@
-from InstructorEmbedding import INSTRUCTOR
+##### from InstructorEmbedding import INSTRUCTOR
 from langchain_community.embeddings import HuggingFaceInstructEmbeddings
 from langchain_chroma import Chroma
 import chromadb.utils.embedding_functions as embedding_functions
@@ -28,6 +28,8 @@ import torch
 import faiss
 import numpy as np
 from datasets import load_dataset
+from concurrent.futures import ThreadPoolExecutor
+
 
 
 ds = load_dataset("HPAI-BSC/medqa-cot")
@@ -43,11 +45,11 @@ query_tokenizer = AutoTokenizer.from_pretrained("ncbi/MedCPT-Query-Encoder")
 load_dotenv()
 
 
-os.environ["GEMINI_API_KEY"] = os.getenv("GEMINI_API_KEY")
+os.environ["GEMINI_API_KEY"] = ""
 
 
 model_name = "hkunlp/instructor-xl"
-model_kwargs = {"device": "cpu"}
+model_kwargs = {"device": "cuda"}
 encode_kwargs = {"normalize_embeddings": True}
 instructor_embeddings = HuggingFaceInstructEmbeddings(
     model_name=model_name, model_kwargs=model_kwargs, encode_kwargs=encode_kwargs
@@ -87,7 +89,7 @@ retriever_model = Chroma(
 retriever = retriever_model.as_retriever(search_kwargs={"k": 5})
 
 
-template = """Write multiple different very short search queries (each queries by a separated by "," & maximum different 4 very short search queries) that will help answer complex user questions, make sure in your answer you only give multiple different very short search queries (each queries by a separated by "," & maximum different 4 very short search queries) and don't include any other text! . Original question: {question}"""
+template = """Write multiple different very short search queries (each queries by a separated by "," & maximum different 5 very short search queries) that will help answer complex user questions, make sure in your answer you only give multiple different very short search queries (each queries by a separated by "," & maximum different 5 very short search queries) and don't include any other text! . Original question: {question}"""
 search_query_prompt = ChatPromptTemplate.from_template(template)
 
 
@@ -108,7 +110,7 @@ class GeminiLLM(LLM):
         )  # buat jawab pertanyaan medis
 
         ans = (
-            llm.generate_content(prompt, generation_config={"temperature": 0.35})
+            llm.generate_content(prompt, generation_config={"temperature": 0.12})
             .candidates[0]
             .content.parts[0]
             .text
@@ -130,74 +132,77 @@ cant_access = {
     "www.ncbi.nlm.nih.gov",
 }  # gak bisa diakses & gak muncul tag <p> nya
 
+def scrape_websearch(queryProc):
+    websearch = []
+    try:
+        results = DDGS().text(queryProc, max_results=8)
+    except Exception:
+        return websearch
+    for res in results:
+        domain = res["href"].split("/")[2]
+        if "webmd" in res["href"] or ".pdf" in res["href"] or domain in cant_access:
+            continue
+        if len(websearch) == 3:
+            break
+        if ".org" in res["href"] or ".gov" in res["href"] or "who" in res["href"]:
+
+            link = res["href"]
+            try:
+                page = requests.get(link).text
+            except requests.exceptions.RequestException as errh:
+                print(f"error: {errh}")
+                continue
+            doc = BeautifulSoup(page, features="html.parser")
+            text = ""
+            hs = doc.find_all("h2")
+            h3s = doc.find_all("h3")
+            ps = doc.find_all("p")
+            for h3 in h3s:
+                hs.append(h3)
+            for pp in ps:
+                hs.append(pp)
+
+            hs_parents = set()
+            for h2 in hs:
+                h2_parent = h2.parent
+                if h2_parent in hs_parents:
+                    continue
+                hs_parents.add(h2_parent)
+                h2_adjacent = h2_parent.children
+                for adjacent in h2_adjacent:
+                    if adjacent.name == "p" and adjacent.text != "\n":
+                        text += adjacent.text + "\n"
+                    if (
+                        adjacent.name == "h2"
+                        or adjacent.name == "h3"
+                        or adjacent.name == "h4"
+                    ):
+                        text += adjacent.text + ": \n"
+                    if adjacent.name == "ul" or adjacent.name == "ol":
+                        text += ": "
+                        for li in adjacent.find_all("li"):
+                            text += li.text + ","
+                        text += "\n"
+            if "Why have I been blocked" in text or text == "" or text == ": \n":
+                continue
+
+            websearch.append(text)
+    return websearch
+
 
 def add_websearch_results(query):
     queries = [query]
     if "," in query:
-        queries = query.split(",")
+        queries.extend(query.split(","))
     else:
         queries = [query]
-
     websearch_all = []
 
-    for queryProc in queries:
-        websearch = []
-        try:
-            results = DDGS().text(queryProc, max_results=8)
-        except Exception:
-            continue
-        for res in results:
-            domain = res["href"].split("/")[2]
-            if "webmd" in res["href"] or ".pdf" in res["href"] or domain in cant_access:
-                continue
-            if len(websearch) == 3:
-                break
-            if ".org" in res["href"] or ".gov" in res["href"] or "who" in res["href"]:
-
-                link = res["href"]
-                try:
-                    page = requests.get(link).text
-                except requests.exceptions.RequestException as errh:
-                    print(f"error: {errh}")
-                    continue
-                doc = BeautifulSoup(page, features="html.parser")
-                text = ""
-                hs = doc.find_all("h2")
-                h3s = doc.find_all("h3")
-                ps = doc.find_all("p")
-                for h3 in h3s:
-                    hs.append(h3)
-                for pp in ps:
-                    hs.append(pp)
-
-                hs_parents = set()
-                for h2 in hs:
-                    h2_parent = h2.parent
-                    if h2_parent in hs_parents:
-                        continue
-                    hs_parents.add(h2_parent)
-                    h2_adjacent = h2_parent.children
-                    for adjacent in h2_adjacent:
-                        if adjacent.name == "p" and adjacent.text != "\n":
-                            text += adjacent.text + "\n"
-                        if (
-                            adjacent.name == "h2"
-                            or adjacent.name == "h3"
-                            or adjacent.name == "h4"
-                        ):
-                            text += adjacent.text + ": \n"
-                        if adjacent.name == "ul" or adjacent.name == "ol":
-                            text += ": "
-                            for li in adjacent.find_all("li"):
-                                text += li.text + ","
-                            text += "\n"
-                if "Why have I been blocked" in text or text == "" or text == ": \n":
-                    continue
-
-                websearch.append(text)
-        for resText in websearch:
-            websearch_all.append(resText)
-
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        results = executor.map(scrape_websearch, queries)
+    for new_contexts in results:
+        websearch_all.extend(new_contexts)
+               
     return websearch_all
 
 
@@ -226,6 +231,8 @@ class DuckDuckGoRetriever(BaseRetriever):
 medqa_cot_data = ds["train"]
 
 
+
+
 class MedQACoTRetriever(BaseRetriever):
     """List of documents to retrieve from."""
 
@@ -241,13 +248,13 @@ class MedQACoTRetriever(BaseRetriever):
 
         queries = [query]
         if "," in query:
-            queries = query.split(",")
+            queries.extend(query.split(","))
         else:
             queries = [query]
 
         relevant_cot = []
-        for search_query in queries:
-
+        
+        def retrieve_cot(search_query):
             with torch.no_grad():
                 # tokenize the queries
                 encoded = query_tokenizer(
@@ -268,9 +275,14 @@ class MedQACoTRetriever(BaseRetriever):
                 curr_relevant_cot.append(
                     f"\nQuestion: {curr_question}\nAnswer: Let's think step by step. {curr_answer}"
                 )
+            return curr_relevant_cot
+        
+        
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            results = executor.map(retrieve_cot, queries)
+        for new_contexts in results:
+            relevant_cot.extend(new_contexts)
 
-            for curr_relevant in curr_relevant_cot:
-                relevant_cot.append(curr_relevant)
         return relevant_cot
 
 
@@ -278,10 +290,13 @@ websearch_retriever = DuckDuckGoRetriever(k=2)
 medqa_cot_retriever = MedQACoTRetriever(k=1)
 
 
+
 def rerank_docs_medcpt(queries, docs):
-    queries = queries.split(",")
+    queries = [queries]
+    queries.extend(queries[0].split(","))
     relevant = set()
-    for query in queries:
+
+    def process_query(query):
         pairs = [[query, article] for article in docs]
         with torch.no_grad():
             encoded = tokenizer(
@@ -294,9 +309,15 @@ def rerank_docs_medcpt(queries, docs):
 
             logits = model(**encoded).logits.squeeze(dim=1)
             values, indices = torch.sort(logits, descending=True)
-            curr_relevant = [docs[i] for i in indices[:2]]
-            for doc in curr_relevant:
-                relevant.add(doc)
+            curr_relevant = [docs[i] for i in indices[:3]]
+        return curr_relevant
+    
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        results = executor.map(process_query, queries)
+
+    for curr_relevant in results:
+        relevant.update(curr_relevant)
+                
     relevant = list(relevant)
     return relevant
 
@@ -319,9 +340,10 @@ def format_docs(docs):
     context = " \n\n".join(doc for doc in relevant_docs)
 
     # tambahin few-shot chain-of-thought prompting
+    relevant_cot = list(set(relevant_cot))[:2]
     for cot in relevant_cot:
         context += " \n" + cot
-    return context
+    return context, relevant_docs
 
 
 template = """Answer the question based only on the following context:
@@ -344,20 +366,26 @@ answer_chain = (
 )
 
 
+def retrieve_and_append(query):
+    new_knowledge_base_contexts = retriever.invoke(query)
+    return new_knowledge_base_contexts
+    
 def answer(question):
-
     docs = retrieval_chain.invoke(question)
     docs["chroma"] = []
-    search_query = docs["query"].split(",")
-    for query in search_query:
-        new_knowledge_base_contexts = retriever.invoke(query)
-        for new_context in new_knowledge_base_contexts:
-            docs["chroma"].append(new_context)
-    context = format_docs(docs)
+    search_query = [docs["query"]]
+    search_query.extend(docs["query"].split(","))
+   
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        results = executor.map(retrieve_and_append, search_query)
+    for new_contexts in results:
+        docs["chroma"].extend(new_contexts)
+    
+    context, relevant_docs = format_docs(docs)
     answer = answer_chain.invoke({"context": context, "question": question})
 
     context = f"search query: {','.join(search_query)}\n" + context
-    return answer, context
+    return answer, context, [context] + relevant_docs
 
 
 
@@ -372,6 +400,6 @@ def answer_pipeline_for_eval(question):
     """
     question = question.replace("\n", "  ")
     print("retrieving relevant passages and answering user question....")
-    pred, context  = answer(question)
-    return pred["llm_output"], context
+    pred, context, relevant_docs  = answer(question)
+    return pred["llm_output"], context, relevant_docs
 
