@@ -5,7 +5,7 @@ dspy-ai
 python-dotenv
 
 langchain-google-genai
-# langchain-huggingface==0.0.2
+langchain-huggingface
 pypdf
 langchain_community
 langchain-chroma

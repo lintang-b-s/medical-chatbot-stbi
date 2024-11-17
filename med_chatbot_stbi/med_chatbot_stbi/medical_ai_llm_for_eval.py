@@ -31,7 +31,6 @@ from datasets import load_dataset
 from concurrent.futures import ThreadPoolExecutor
 
 
-
 ds = load_dataset("HPAI-BSC/medqa-cot")
 
 medqa_cot_embeds = np.load("medqa_cot.npy")
@@ -45,16 +44,23 @@ query_tokenizer = AutoTokenizer.from_pretrained("ncbi/MedCPT-Query-Encoder")
 load_dotenv()
 
 
-os.environ["GEMINI_API_KEY"] = ""
+os.environ["GEMINI_API_KEY"] = os.getenv("GEMINI_API_KEY")
 
 
 model_name = "hkunlp/instructor-xl"
-model_kwargs = {"device": "cuda"}
+model_kwargs = {"device": "cpu"}
 encode_kwargs = {"normalize_embeddings": True}
+# https://arxiv.org/abs/2212.09741
 instructor_embeddings = HuggingFaceInstructEmbeddings(
-    model_name=model_name, model_kwargs=model_kwargs, encode_kwargs=encode_kwargs
+    model_name=model_name,
+    model_kwargs=model_kwargs,
+    encode_kwargs=encode_kwargs,
+    query_instruction="Represent the Medicine sentence for retrieving relevant documents: ",
 )
 
+instructor_embeddings.query_instruction = (
+    "Represent the Medicine sentence for retrieving relevant documents: "
+)
 tokenizer = AutoTokenizer.from_pretrained("ncbi/MedCPT-Cross-Encoder")
 model = AutoModelForSequenceClassification.from_pretrained("ncbi/MedCPT-Cross-Encoder")
 
@@ -132,6 +138,7 @@ cant_access = {
     "www.ncbi.nlm.nih.gov",
 }  # gak bisa diakses & gak muncul tag <p> nya
 
+
 def scrape_websearch(queryProc):
     websearch = []
     try:
@@ -202,7 +209,7 @@ def add_websearch_results(query):
         results = executor.map(scrape_websearch, queries)
     for new_contexts in results:
         websearch_all.extend(new_contexts)
-               
+
     return websearch_all
 
 
@@ -231,8 +238,6 @@ class DuckDuckGoRetriever(BaseRetriever):
 medqa_cot_data = ds["train"]
 
 
-
-
 class MedQACoTRetriever(BaseRetriever):
     """List of documents to retrieve from."""
 
@@ -253,7 +258,7 @@ class MedQACoTRetriever(BaseRetriever):
             queries = [query]
 
         relevant_cot = []
-        
+
         def retrieve_cot(search_query):
             with torch.no_grad():
                 # tokenize the queries
@@ -276,8 +281,7 @@ class MedQACoTRetriever(BaseRetriever):
                     f"\nQuestion: {curr_question}\nAnswer: Let's think step by step. {curr_answer}"
                 )
             return curr_relevant_cot
-        
-        
+
         with ThreadPoolExecutor(max_workers=3) as executor:
             results = executor.map(retrieve_cot, queries)
         for new_contexts in results:
@@ -288,7 +292,6 @@ class MedQACoTRetriever(BaseRetriever):
 
 websearch_retriever = DuckDuckGoRetriever(k=2)
 medqa_cot_retriever = MedQACoTRetriever(k=1)
-
 
 
 def rerank_docs_medcpt(queries, docs):
@@ -311,13 +314,13 @@ def rerank_docs_medcpt(queries, docs):
             values, indices = torch.sort(logits, descending=True)
             curr_relevant = [docs[i] for i in indices[:3]]
         return curr_relevant
-    
+
     with ThreadPoolExecutor(max_workers=3) as executor:
         results = executor.map(process_query, queries)
 
     for curr_relevant in results:
         relevant.update(curr_relevant)
-                
+
     relevant = list(relevant)
     return relevant
 
@@ -334,7 +337,7 @@ def format_docs(docs):
     chroma_docs = [doc.metadata["content"] + doc.page_content for doc in docs["chroma"]]
     relevant_cot = docs["medqa_cot"]
 
-    docs = list(set(chroma_docs + docs["websearch"] ))
+    docs = list(set(chroma_docs + docs["websearch"]))
     # rerank passage2 dari document chromadb & hasil scraping webpage hasil duckduckgosearch
     relevant_docs = rerank_docs_medcpt(query, docs)
     context = " \n\n".join(doc for doc in relevant_docs)
@@ -359,35 +362,30 @@ Answer: Let's think step by step.
 
 prompt = ChatPromptTemplate.from_template(template)
 
-answer_chain = (
-     prompt
-    | llm
-    | {"llm_output": StrOutputParser()}
-)
+answer_chain = prompt | llm | {"llm_output": StrOutputParser()}
 
 
 def retrieve_and_append(query):
     new_knowledge_base_contexts = retriever.invoke(query)
     return new_knowledge_base_contexts
-    
+
+
 def answer(question):
     docs = retrieval_chain.invoke(question)
     docs["chroma"] = []
     search_query = [docs["query"]]
     search_query.extend(docs["query"].split(","))
-   
+
     with ThreadPoolExecutor(max_workers=1) as executor:
         results = executor.map(retrieve_and_append, search_query)
     for new_contexts in results:
         docs["chroma"].extend(new_contexts)
-    
+
     context, relevant_docs = format_docs(docs)
     answer = answer_chain.invoke({"context": context, "question": question})
 
     context = f"search query: {','.join(search_query)}\n" + context
     return answer, context, [context] + relevant_docs
-
-
 
 
 def answer_pipeline_for_eval(question):
@@ -396,10 +394,9 @@ def answer_pipeline_for_eval(question):
     Pertanyaan dalam bahasa inggris.
     pakai pertanyaan dari PubmedQA, MedQA -> pakai  (exact match)
     pakai: https://huggingface.co/datasets/GBaker/MedQA-USMLE-4-options/viewer/default/test?row=23
-    
+
     """
     question = question.replace("\n", "  ")
     print("retrieving relevant passages and answering user question....")
-    pred, context, relevant_docs  = answer(question)
+    pred, context, relevant_docs = answer(question)
     return pred["llm_output"], context, relevant_docs
-
