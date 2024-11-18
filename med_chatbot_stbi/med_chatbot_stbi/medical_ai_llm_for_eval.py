@@ -61,6 +61,7 @@ instructor_embeddings = HuggingFaceInstructEmbeddings(
 instructor_embeddings.query_instruction = (
     "Represent the Medicine sentence for retrieving relevant documents: "
 )
+
 tokenizer = AutoTokenizer.from_pretrained("ncbi/MedCPT-Cross-Encoder")
 model = AutoModelForSequenceClassification.from_pretrained("ncbi/MedCPT-Cross-Encoder")
 
@@ -92,7 +93,7 @@ retriever_model = Chroma(
     embedding_function=instructor_embeddings,
 )
 
-retriever = retriever_model.as_retriever(search_kwargs={"k": 5})
+retriever = retriever_model.as_retriever(search_kwargs={"k": 10})
 
 
 template = """Write multiple different very short search queries (each queries by a separated by "," & maximum different 5 very short search queries) that will help answer complex user questions, make sure in your answer you only give multiple different very short search queries (each queries by a separated by "," & maximum different 5 very short search queries) and don't include any other text! . Original question: {question}"""
@@ -291,12 +292,11 @@ class MedQACoTRetriever(BaseRetriever):
 
 
 websearch_retriever = DuckDuckGoRetriever(k=2)
-medqa_cot_retriever = MedQACoTRetriever(k=1)
+medqa_cot_retriever = MedQACoTRetriever(k=2)
 
 
-def rerank_docs_medcpt(queries, docs):
-    queries = [queries]
-    queries.extend(queries[0].split(","))
+def rerank_docs_medcpt(question, docs):
+  
     relevant = set()
 
     def process_query(query):
@@ -312,14 +312,14 @@ def rerank_docs_medcpt(queries, docs):
 
             logits = model(**encoded).logits.squeeze(dim=1)
             values, indices = torch.sort(logits, descending=True)
-            curr_relevant = [docs[i] for i in indices[:3]]
+            curr_relevant = [docs[i] for i in indices[:8]]
         return curr_relevant
 
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        results = executor.map(process_query, queries)
+    
+    results = process_query(question)
 
     for curr_relevant in results:
-        relevant.update(curr_relevant)
+        relevant.add(curr_relevant)
 
     relevant = list(relevant)
     return relevant
@@ -327,19 +327,18 @@ def rerank_docs_medcpt(queries, docs):
 
 retrieval_chain = generate_query | {
     "websearch": websearch_retriever,
-    "medqa_cot": medqa_cot_retriever,
     "query": StrOutputParser(),
 }
 
 
-def format_docs(docs):
-    query = docs["query"]
+def format_docs(docs, question):
     chroma_docs = [doc.metadata["content"] + doc.page_content for doc in docs["chroma"]]
     relevant_cot = docs["medqa_cot"]
 
     docs = list(set(chroma_docs + docs["websearch"]))
     # rerank passage2 dari document chromadb & hasil scraping webpage hasil duckduckgosearch
-    relevant_docs = rerank_docs_medcpt(query, docs)
+    relevant_docs = rerank_docs_medcpt(question, docs)
+
     context = " \n\n".join(doc for doc in relevant_docs)
 
     # tambahin few-shot chain-of-thought prompting
@@ -369,19 +368,28 @@ def retrieve_and_append(query):
     new_knowledge_base_contexts = retriever.invoke(query)
     return new_knowledge_base_contexts
 
+def retrieve_medqa_cot(query):
+    cots = medqa_cot_retriever.invoke(query)
+    return cots
 
 def answer(question):
-    docs = retrieval_chain.invoke(question)
+    docs = retrieval_chain.invoke(question) # websearch engine pakai generated search query
     docs["chroma"] = []
-    search_query = [docs["query"]]
-    search_query.extend(docs["query"].split(","))
+    docs["medqa_cot"] = []
+    search_query = [question]# medqa_cot & knowledge base pakai question user, karena pakai transformer encoder (pubmedbert, gtr)
 
     with ThreadPoolExecutor(max_workers=1) as executor:
         results = executor.map(retrieve_and_append, search_query)
     for new_contexts in results:
         docs["chroma"].extend(new_contexts)
 
-    context, relevant_docs = format_docs(docs)
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        results = executor.map(retrieve_medqa_cot, search_query)
+    for new_contexts in results:
+        docs["medqa_cot"].extend(new_contexts)
+
+    context, relevant_docs = format_docs(docs, question)
     answer = answer_chain.invoke({"context": context, "question": question})
 
     context = f"search query: {','.join(search_query)}\n" + context

@@ -22,7 +22,7 @@ def get_chatbot_response_for_eval(request):
         body = json.loads(body_unicode)
         question = body["question"]
         chat_history = body["chatHistory"]
-        answer, context = answer_pipeline_for_eval(question)
+        answer, context, relevant_docs = answer_pipeline_for_eval(question)
 
         return JsonResponse({"chatbot_message": answer, "context": context})
 
