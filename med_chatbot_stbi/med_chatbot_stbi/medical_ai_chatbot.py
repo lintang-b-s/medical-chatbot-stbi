@@ -379,9 +379,7 @@ def answer(question):
     )  # websearch engine pakai generated search query
     docs["chroma"] = []
     docs["medqa_cot"] = []
-    search_query = [
-        question
-    ]  # medqa_cot & knowledge base pakai question user, karena pakai transformer encoder (pubmedbert, gtr)
+    search_query = [question]  #
 
     with ThreadPoolExecutor(max_workers=1) as executor:
         results = executor.map(retrieve_and_append, search_query)

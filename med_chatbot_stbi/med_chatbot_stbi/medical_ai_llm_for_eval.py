@@ -296,7 +296,7 @@ medqa_cot_retriever = MedQACoTRetriever(k=2)
 
 
 def rerank_docs_medcpt(question, docs):
-  
+
     relevant = set()
 
     def process_query(query):
@@ -315,7 +315,6 @@ def rerank_docs_medcpt(question, docs):
             curr_relevant = [docs[i] for i in indices[:8]]
         return curr_relevant
 
-    
     results = process_query(question)
 
     for curr_relevant in results:
@@ -368,21 +367,24 @@ def retrieve_and_append(query):
     new_knowledge_base_contexts = retriever.invoke(query)
     return new_knowledge_base_contexts
 
+
 def retrieve_medqa_cot(query):
     cots = medqa_cot_retriever.invoke(query)
     return cots
 
+
 def answer(question):
-    docs = retrieval_chain.invoke(question) # websearch engine pakai generated search query
+    docs = retrieval_chain.invoke(
+        question
+    )  # websearch engine pakai generated search query
     docs["chroma"] = []
     docs["medqa_cot"] = []
-    search_query = [question]# medqa_cot & knowledge base pakai question user, karena pakai transformer encoder (pubmedbert, gtr)
+    search_query = [question]  #
 
     with ThreadPoolExecutor(max_workers=1) as executor:
         results = executor.map(retrieve_and_append, search_query)
     for new_contexts in results:
         docs["chroma"].extend(new_contexts)
-
 
     with ThreadPoolExecutor(max_workers=1) as executor:
         results = executor.map(retrieve_medqa_cot, search_query)

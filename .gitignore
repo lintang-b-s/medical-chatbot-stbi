@@ -35,3 +35,6 @@ eval/*.jsonl
 eval/*.csv
 
 
+eval/trec_covid_embed.npy
+
+beir/
