@@ -413,6 +413,6 @@ def answer_pipeline(question, chat_history):
     question = translate_text(question, "English")
     question = question.replace("\n", "  ")
     print("retrieving relevant passages and answering user question....")
-    pred, context = answer(question)
+    pred, context, unformatted_docs = answer(question)
     translate_answer = translate_text(pred["llm_output"], "Indonesian")
     return translate_answer, context
